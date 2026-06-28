@@ -41,3 +41,9 @@ def test_output_dir_cannot_be_existing_file():
         else:
             raise AssertionError("expected ValueError")
 
+
+
+def test_safe_stem_replaces_smart_quotes():
+    from extract_articles import safe_stem
+
+    assert safe_stem("China’s currency: Tricky troika", 2) == "002-China_s currency_ Tricky troika"

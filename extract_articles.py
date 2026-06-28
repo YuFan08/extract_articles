@@ -15,14 +15,11 @@ from docx.shared import Cm, Pt, RGBColor
 
 
 CJK_RE = re.compile(r"[\u3400-\u9fff]")
-BAD_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]+')
+BAD_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|‘’“”]+')
 
 
 def progress(current: int, total: int, message: str) -> None:
-    width = 24
-    done = int(width * current / total) if total else width
-    bar = "#" * done + "-" * (width - done)
-    print(f"[{bar}] {current}/{total} {message}", flush=True)
+    print(f"{current}/{total} {message}", flush=True)
 
 
 def safe_stem(text: str, index: int) -> str:
@@ -130,21 +127,21 @@ def convert_with_soffice(docx_path: Path, pdf_dir: Path) -> bool:
     return (pdf_dir / f"{docx_path.stem}.pdf").exists()
 
 
-def ps_quote(value: Path) -> str:
-    return "'" + str(value).replace("'", "''") + "'"
+def ps_here_string(value: Path) -> str:
+    return "@'\n" + str(value) + "\n'@"
 
 
 def convert_with_word(docx_path: Path, pdf_path: Path) -> bool:
     if sys.platform != "win32":
         return False
-    docx = ps_quote(docx_path)
-    pdf = ps_quote(pdf_path)
     ps = f"""
+$DocxPath = {ps_here_string(docx_path)}
+$PdfPath = {ps_here_string(pdf_path)}
 $word = New-Object -ComObject Word.Application
 $word.Visible = $false
 try {{
-    $doc = $word.Documents.Open({docx}, $false, $true)
-    $doc.ExportAsFixedFormat({pdf}, 17)
+    $doc = $word.Documents.Open($DocxPath, $false, $true)
+    $doc.ExportAsFixedFormat($PdfPath, 17)
     $doc.Close([ref]$false)
 }} finally {{
     $word.Quit()
@@ -163,7 +160,7 @@ def convert_to_pdf(docx_path: Path, pdf_dir: Path) -> None:
     pdf_path = pdf_dir / f"{docx_path.stem}.pdf"
     if convert_with_soffice(docx_path, pdf_dir) or convert_with_word(docx_path.resolve(), pdf_path.resolve()):
         return
-    raise RuntimeError(f"PDF 转换失败：{docx_path.name}。请确认已安装 LibreOffice 或 Microsoft Word。")
+    raise RuntimeError(f"PDF 转换失败：{docx_path.name}。请关闭正在打开的 Word/PDF 文件后重试。")
 
 
 def validate_paths(input_docx: Path, output_dir: Path) -> None:

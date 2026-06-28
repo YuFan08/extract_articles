@@ -11,6 +11,7 @@
 - 中文正文：楷体，四号，单倍行距，蓝色背景
 - 页边距：上下左右 1.27cm
 - PDF 导出优先使用 LibreOffice；Windows 下可使用本机 Microsoft Word
+- 文件名会自动替换不适合路径和 Office 自动化的引号字符
 
 ## 使用
 
