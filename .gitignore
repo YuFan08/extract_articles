@@ -1,0 +1,12 @@
+.venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+
+# Local input/output documents
+*.docx
+*.pdf
+*_拆分文章/
+效果预览*/
+试拆前5篇/
+_render_check_*/
