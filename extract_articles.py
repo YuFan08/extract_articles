@@ -18,6 +18,13 @@ CJK_RE = re.compile(r"[\u3400-\u9fff]")
 BAD_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]+')
 
 
+def progress(current: int, total: int, message: str) -> None:
+    width = 24
+    done = int(width * current / total) if total else width
+    bar = "#" * done + "-" * (width - done)
+    print(f"[{bar}] {current}/{total} {message}", flush=True)
+
+
 def safe_stem(text: str, index: int) -> str:
     name = BAD_FILENAME_CHARS.sub("_", text).strip().strip(".")
     return f"{index:03d}-{name[:80] or 'article'}"
@@ -150,32 +157,51 @@ try {{
     )
     return proc.returncode == 0 and pdf_path.exists()
 
+
 def convert_to_pdf(docx_path: Path, pdf_dir: Path) -> None:
     pdf_dir.mkdir(parents=True, exist_ok=True)
     pdf_path = pdf_dir / f"{docx_path.stem}.pdf"
     if convert_with_soffice(docx_path, pdf_dir) or convert_with_word(docx_path.resolve(), pdf_path.resolve()):
         return
-    raise RuntimeError("PDF conversion failed: install LibreOffice or Microsoft Word, then rerun.")
+    raise RuntimeError(f"PDF 转换失败：{docx_path.name}。请确认已安装 LibreOffice 或 Microsoft Word。")
+
+
+def validate_paths(input_docx: Path, output_dir: Path) -> None:
+    if not input_docx.exists():
+        raise ValueError(f"输入文件不存在：{input_docx}")
+    if not input_docx.is_file():
+        raise ValueError(f"输入路径不是文件：{input_docx}")
+    if output_dir.exists() and not output_dir.is_dir():
+        suggestion = output_dir.with_suffix("")
+        raise ValueError(f"输出路径不能是已有文件：{output_dir}\n请改用文件夹，例如：-o \"{suggestion}\"")
 
 
 def extract(input_docx: Path, output_dir: Path, max_articles: int | None = None, make_pdf: bool = True) -> int:
+    validate_paths(input_docx, output_dir)
     word_dir = output_dir / "word"
     pdf_dir = output_dir / "pdf"
+
+    source = Document(input_docx)
+    articles = list(iter_articles(source))
+    if max_articles:
+        articles = articles[:max_articles]
+    if not articles:
+        raise ValueError("没有找到文章标题。请确认文档使用 Heading 1 作为每篇文章标题。")
+
     word_dir.mkdir(parents=True, exist_ok=True)
     if make_pdf:
         pdf_dir.mkdir(parents=True, exist_ok=True)
 
-    source = Document(input_docx)
-    count = 0
-    for count, (title, body) in enumerate(iter_articles(source), 1):
-        if max_articles and count > max_articles:
-            return count - 1
+    total = len(articles)
+    for count, (title, body) in enumerate(articles, 1):
         stem = safe_stem(title, count)
         docx_path = word_dir / f"{stem}.docx"
+        progress(count, total, f"正在提取：{title}")
         write_article(title, body, docx_path)
         if make_pdf:
+            progress(count, total, f"正在转换 PDF：{title}")
             convert_to_pdf(docx_path, pdf_dir)
-    return count
+    return total
 
 
 def main() -> None:
@@ -187,12 +213,14 @@ def main() -> None:
     args = parser.parse_args()
 
     output_dir = args.output_dir or args.input_docx.with_name(f"{args.input_docx.stem}_拆分文章")
-    count = extract(args.input_docx, output_dir, args.max_articles, make_pdf=not args.no_pdf)
-    kinds = "Word and PDF" if not args.no_pdf else "Word"
-    print(f"exported {count} articles as {kinds} to {output_dir}")
+    try:
+        count = extract(args.input_docx, output_dir, args.max_articles, make_pdf=not args.no_pdf)
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f"错误：{exc}", file=sys.stderr)
+        raise SystemExit(2)
+    kinds = "Word 和 PDF" if not args.no_pdf else "Word"
+    print(f"完成：已导出 {count} 篇文章为 {kinds}，位置：{output_dir}")
 
 
 if __name__ == "__main__":
     main()
-
-

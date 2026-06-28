@@ -23,3 +23,21 @@ def test_split_and_export_two_articles():
         assert len(list((tmp / "out" / "word").glob("*.docx"))) == 2
 
 
+
+
+def test_output_dir_cannot_be_existing_file():
+    with TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        source = tmp / "source.docx"
+        doc = Document()
+        doc.add_paragraph("One", style="Heading 1")
+        doc.add_paragraph("English text.")
+        doc.save(source)
+
+        try:
+            extract(source, source, make_pdf=False)
+        except ValueError as exc:
+            assert "输出路径不能是已有文件" in str(exc)
+        else:
+            raise AssertionError("expected ValueError")
+

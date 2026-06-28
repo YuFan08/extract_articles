@@ -20,6 +20,8 @@
 uv run python .\extract_articles.py "输入文档.docx"
 ```
 
+输出路径必须是文件夹，程序会在其中创建 `word/` 和 `pdf/` 两个子文件夹。
+
 只导出前 1 篇用于预览：
 
 ```powershell
@@ -37,3 +39,4 @@ uv run python .\extract_articles.py "输入文档.docx" --no-pdf
 ```powershell
 uv run python -c "from test_extract_articles import test_split_and_export_two_articles; test_split_and_export_two_articles(); print('self-check passed')"
 ```
+
